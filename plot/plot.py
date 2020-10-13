@@ -1,9 +1,10 @@
 from typing import List, Union, Tuple
 
-from figure import Figure
-from axes import Axes
-from ohlcv import TickVolume, TickCandles
-import model
+import pandas as pd
+
+from .figure import Figure
+from .axes import Axes
+from .ohlcv import TickVolume, TickCandles
 
 
 def subplots(num_rows: int, num_cols: int):
@@ -33,13 +34,13 @@ def subplots(num_rows: int, num_cols: int):
     return fig, axes
 
 
-def ohlcv_plot(model: model.TickModel):
+def ohlcv_plot(data: pd.DataFrame):
 
     fig, axes = subplots(2, 1)
-    axes[0].plot_series.append(TickCandles(model))
-    axes[1].plot_series.append(TickVolume(model))
+    axes[0].plot_series.append(TickCandles(data))
+    axes[1].plot_series.append(TickVolume(data))
 
-    fig.set_title(f'{model.contract} {model.date}')
+#    fig.set_title(f'{model.contract} {model.date}')
 
     fig.layout()
     fig.draw()

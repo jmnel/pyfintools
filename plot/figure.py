@@ -1,14 +1,10 @@
 from io import BytesIO
 from pathlib import Path
-import sys
-from copy import deepcopy
-import tempfile
-import shutil
 
 import cairo
 import numpy as np
 
-from geometry import Point, Rect
+from .geometry import Point, Rect
 
 
 class Figure:
@@ -123,6 +119,8 @@ class Figure:
 
     def set_title(self, title: str):
         self.title = title
+        self.layout()
+        self.draw()
 
     def save(self, path: Path):
         with open(path, 'wb') as f:

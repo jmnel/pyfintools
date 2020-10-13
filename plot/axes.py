@@ -1,7 +1,7 @@
 import numpy as np
 import cairo
 
-from geometry import Rect, Point
+from .geometry import Rect, Point
 
 
 class Axes:

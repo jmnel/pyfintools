@@ -1,17 +1,32 @@
 import numpy as np
 import cairo
+import pandas as pd
 
-from plot_series import PlotSeries
-from geometry import Point, Rect
-from model import TickModel
+from .plot_series import PlotSeries
+from .geometry import Point, Rect
+
+
+def _text(ctx, string, pos, theta):
+    ctx.save()
+    fascent, fdescent, fheight, fxadvance, fyadvance = ctx.font_extents()
+    x_off, y_off, tw, th = ctx.text_extents(string)[:4]
+    nx = -tw / 2.0
+    ny = fheight / 2
+
+    ctx.translate(*pos)
+    ctx.rotate(theta)
+    ctx.translate(nx, ny)
+    ctx.move_to(0, 0)
+    ctx.show_text(string)
+    ctx.restore()
 
 
 class TickCandles(PlotSeries):
 
-    def __init__(self, model: TickModel):
+    def __init__(self, data: pd.DataFrame):
         super().__init__()
 
-        self.model = model
+        self.data = data
 
         m = 20
         p = 10
@@ -30,6 +45,8 @@ class TickCandles(PlotSeries):
 
         self.font_size = 12
         self.font_face = 'InputSans'
+        self.tick_font_size = 8
+        self.axis_label_size = 10
 
     def layout(self, rect: Rect, transform: np.ndarray):
         m = self.margins
@@ -83,7 +100,7 @@ class TickCandles(PlotSeries):
         green = (92 / 256, 214 / 256, 92 / 256)
         red = (1, 102 / 256, 102 / 256)
 
-        bars = self.model.bars_df
+        bars = self.data
 
         ylim = (bars.low.min(), bars.high.max())
 
@@ -98,7 +115,8 @@ class TickCandles(PlotSeries):
         ctx.line_to(*axis_y_0[:2])
         ctx.stroke()
 
-        ctx.set_font_size(10)
+        # Draw x ticks.
+        ctx.set_font_size(self.tick_font_size)
         x_ticks = [-0.5, ] + list(range(7))
         x_tick_labels = ['9:30', ] + list(f'{10+i}:00' for i in x_ticks[1:])
         for idx, tick in enumerate(x_ticks):
@@ -118,6 +136,7 @@ class TickCandles(PlotSeries):
             ctx.move_to(grid_0[0] - w / 2, grid_0[1] + h / 2 + 0.9 * self.y_axis_space)
             ctx.show_text(tick_label)
 
+        # Draw y ticks.
         y_tick_min = np.ceil(ylim[0]) + 0
         y_tick_max = np.ceil(ylim[1])
 
@@ -141,6 +160,10 @@ class TickCandles(PlotSeries):
             (x, y, w, h, dx, dy) = ctx.text_extents(tick_label)
             ctx.move_to(grid_0[0] + w / 2 - 4, grid_0[1] + h / 2)
             ctx.show_text(label)
+
+        ctx.set_font_size(self.axis_label_size)
+        p = self.transform_plot @ np.array([1.22, -0.98, 0])
+        _text(ctx, 'Price', p[:2], -np.pi / 2)
 
         for idx in range(len(bars)):
 
@@ -176,8 +199,8 @@ class TickCandles(PlotSeries):
 
             ctx.set_source_rgb(0, 0, 0)
             ctx.set_line_width(self.stick_line_width)
-            ctx.move_to(*line_0[:2])
-            ctx.line_to(*line_1[:2])
+            ctx.move_to(*line_0[: 2])
+            ctx.line_to(*line_1[: 2])
             ctx.stroke()
 
             w, h = x1 - x0, y3 - y2
@@ -188,7 +211,7 @@ class TickCandles(PlotSeries):
             candle_1 = self.transform_plot @ np.array([x_mid + 0.5 * self.candle_width_scale * w, y3, 1])
             candle_sc = candle_1 - candle_0
 
-            ctx.rectangle(*candle_0[:2], *candle_sc[:2])
+            ctx.rectangle(*candle_0[: 2], *candle_sc[: 2])
             ctx.fill_preserve()
 
             ctx.set_source_rgb(0, 0, 0)
@@ -198,10 +221,10 @@ class TickCandles(PlotSeries):
 
 class TickVolume(PlotSeries):
 
-    def __init__(self, model: TickModel):
+    def __init__(self, data: pd.DataFrame):
         super().__init__()
 
-        self.model = model
+        self.data = data
 
         m = 20
         p = 10
@@ -218,8 +241,10 @@ class TickVolume(PlotSeries):
         self.background_color = (0, 0, 0, 0)
         self.border_color = (0.0, 0, 0, 1)
 
-        self.font_size = 12
+        self.font_size = 8
         self.font_face = 'InputSans'
+        self.axis_label_size = 10
+        self.tick_label_size = 8
 
     def layout(self, rect: Rect, transform: np.ndarray):
         m = self.margins
@@ -243,7 +268,7 @@ class TickVolume(PlotSeries):
                                          [0, 0, 1]])
         self.transform_plot = np.array([[inner_scale.x - self.x_axis_space, 0, inner_pos.x],
                                         [0, -inner_scale.y + self.y_axis_space,
-                                            inner_pos.y + inner_scale.y - self.y_axis_space],
+                                         inner_pos.y + inner_scale.y - self.y_axis_space],
                                         [0, 0, 1]])
 
     def draw(self, ctx: cairo.Context):
@@ -271,7 +296,7 @@ class TickVolume(PlotSeries):
         green = (92 / 256, 214 / 256, 92 / 256)
         red = (1, 102 / 256, 102 / 256)
 
-        bars = self.model.bars_df
+        bars = self.data
 
         ylim = (bars.volume.min(), bars.volume.max())
 
@@ -286,7 +311,7 @@ class TickVolume(PlotSeries):
         ctx.line_to(*axis_y_0[:2])
         ctx.stroke()
 
-        ctx.set_font_size(10)
+        ctx.set_font_size(self.tick_label_size)
         x_ticks = [-0.5, ] + list(range(7))
         x_tick_labels = ['9:30', ] + list(f'{10+i}:00' for i in x_ticks[1:])
         for idx, tick in enumerate(x_ticks):
@@ -329,6 +354,11 @@ class TickVolume(PlotSeries):
             (x, y, w, h, dx, dy) = ctx.text_extents(tick_label)
             ctx.move_to(grid_0[0] + w / 2 - 4, grid_0[1] + h / 2)
             ctx.show_text(label)
+
+        ctx.set_font_size(self.axis_label_size)
+        p = self.transform_plot @ np.array([1.22, -0.5, 0])
+        p += np.array([0, self.rect_inner.position.y, 1])
+        _text(ctx, 'Volume', p[:2], -np.pi / 2)
 
         for idx in range(len(bars)):
 
